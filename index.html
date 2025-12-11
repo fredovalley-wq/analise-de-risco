@@ -57,12 +57,15 @@
         import { createRoot } from 'react-dom/client';
         import { 
             Plus, Trash2, Printer, RefreshCw, ShieldAlert, FileText, 
-            BrainCircuit, CheckCircle2, Eraser, Download, X, AlertTriangle, Settings, Key
+            BrainCircuit, CheckCircle2, Eraser, Download, X, AlertTriangle, Settings, Key, Lock
         } from 'lucide-react';
 
         /* --- CONFIGURAÇÃO PADRÃO --- */
-        // A chave anterior foi revogada. Deixe vazio para forçar o usuário a inserir a sua.
         const DEFAULT_API_KEY = "AIzaSyBOwoVr1dyR64PHZnHEepqRqXeZ_6HcWQE"; 
+        
+        // --- SENHA DE ACESSO ---
+        // Altere esta string para mudar a senha do aplicativo
+        const ACCESS_PASSWORD = "pprs"; 
 
         const PROBABILITY_LABELS_MAP = {
             5: 'Muito Alta', 4: 'Alta', 3: 'Média', 2: 'Baixa', 1: 'Muito Baixa'
@@ -166,6 +169,10 @@
         // --- APP PRINCIPAL ---
 
         function App() {
+            // Estados de Autenticação
+            const [isAuthenticated, setIsAuthenticated] = useState(false);
+            const [loginPassword, setLoginPassword] = useState('');
+
             // Estados de Dados
             const [docTitle, setDocTitle] = useState('');
             const [docRef, setDocRef] = useState('');
@@ -199,6 +206,17 @@
             // --- Helpers ---
             const showToast = (message, type = 'info') => setNotification({ message, type });
             const closeToast = () => setNotification(null);
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                if (loginPassword === ACCESS_PASSWORD) {
+                    setIsAuthenticated(true);
+                    showToast("Acesso concedido. Bem-vindo.", "success");
+                } else {
+                    showToast("Senha incorreta.", "error");
+                    setLoginPassword('');
+                }
+            };
 
             const openConfirm = (title, message, action) => {
                 setConfirmModal({
@@ -516,6 +534,47 @@
                     setIsGeneratingConclusion(false); 
                 }
             };
+
+            // RENDERIZAÇÃO CONDICIONAL: LOGIN OU APP
+            if (!isAuthenticated) {
+                return (
+                    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
+                         {notification && <Toast message={notification.message} type={notification.type} onClose={closeToast} />}
+                         
+                         <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm text-center animate-fade-in border-t-4 border-yellow-500">
+                            <div className="mb-6 flex justify-center">
+                                <ShieldAlert size={64} className="text-yellow-500" />
+                            </div>
+                            <h1 className="text-2xl font-bold text-slate-900 mb-1 tracking-tight">POLÍCIA PENAL RS</h1>
+                            <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-8 border-b pb-4">Departamento de Inteligência</h2>
+                            
+                            <form onSubmit={handleLogin} className="space-y-4">
+                                <div className="relative text-left">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Senha de Acesso</label>
+                                    <div className="relative mt-1">
+                                        <Lock className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                                        <input 
+                                            type="password" 
+                                            value={loginPassword}
+                                            onChange={(e) => setLoginPassword(e.target.value)}
+                                            className="w-full pl-9 p-2 border border-slate-300 rounded bg-slate-50 focus:bg-white focus:border-blue-600 outline-none transition text-sm"
+                                            placeholder="••••••••"
+                                            autoFocus
+                                        />
+                                    </div>
+                                </div>
+                                <button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded transition uppercase text-xs shadow-lg flex items-center justify-center gap-2 mt-2">
+                                    Acessar Sistema <Key size={14} />
+                                </button>
+                            </form>
+                            <p className="mt-8 text-[9px] text-slate-400">
+                                Acesso restrito a servidores autorizados.<br/>
+                                <span className="opacity-50">Sessão Segura v1.2</span>
+                            </p>
+                         </div>
+                    </div>
+                );
+            }
 
             return (
                 <div className="min-h-screen bg-gray-200 p-4 md:p-8 font-sans text-slate-800 flex justify-center">
