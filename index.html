@@ -2,454 +2,660 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Relatório DIPEN/PP</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANÁLISE DE RISCO - Sistema Penitenciário</title>
+    <!-- Carrega Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Bibliotecas para PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
     <style>
-        input, textarea, select { font-size: 16px !important; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #1e293b; }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-        @keyframes slideIn { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        .toast-enter { animation: slideIn 0.3s ease-out forwards; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f7f7f7; }
         
-        /* Estilo para remover botão de input file padrão */
-        input[type="file"] { display: none; }
+        /* Estilos da Matriz */
+        .risk-cell {
+            min-height: 80px; padding: 8px; border: 1px solid #e5e7eb;
+            font-size: 0.75rem; line-height: 1; overflow: hidden;
+            transition: background-color 0.2s;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: 1.5rem; /* Espaço para o número do score */
+        }
+        
+        /* Labels laterais de Impacto (Alinhamento Eixo Y) */
+        .impact-row-label {
+            height: 80px; /* Deve ser igual ao min-height da risk-cell */
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 8px;
+            font-size: 0.75rem; /* text-xs */
+            font-weight: 700;
+            color: #6b7280; /* gray-500 */
+            white-space: nowrap;
+        }
+
+        /* Cores da Matriz - Compatíveis com a Legenda */
+        .matrix-1-4 { background-color: #6ee7b7; } /* Baixo */
+        .matrix-5-9 { background-color: #fcd34d; } /* Médio */
+        .matrix-10-15 { background-color: #fb923c; } /* Alto */
+        .matrix-16-25 { background-color: #991b1b; color: white; } /* Crítico (Vermelho Escuro) */
+        
+        /* Chip do Risco */
+        .risk-item {
+            display: inline-block; 
+            width: 90%; 
+            text-align: center; /* Texto centralizado */
+            padding: 4px 4px; 
+            margin: 2px 0; 
+            border-radius: 4px;
+            font-weight: 700; 
+            font-size: 0.7rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            text-shadow: 0 0 2px rgba(0,0,0,0.1); 
+            cursor: help;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            z-index: 10;
+        }
+
+        /* Número do Score (P x I) no canto da célula */
+        .risk-score-label {
+            position: absolute; 
+            left: 4px; 
+            top: 4px; 
+            font-size: 0.7rem; 
+            font-weight: bold;
+            opacity: 0.6;
+        }
+
+        /* Título do eixo Y (Impacto) para PDF */
+        .impact-title-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+        }
+        .impact-title {
+            transform: rotate(-90deg);
+            font-size: 0.8rem;
+            font-weight: 800;
+            color: #4b5563;
+            white-space: nowrap;
+            letter-spacing: 0.1em;
+        }
+
+        /* Células editáveis na tabela */
+        [contenteditable="true"]:hover {
+            background-color: #f0f9ff;
+            outline: 1px dashed #cbd5e1;
+            cursor: text;
+        }
+        [contenteditable="true"]:focus {
+            background-color: #ffffff;
+            outline: 2px solid #3b82f6;
+            z-index: 10;
+        }
+
+        /* Estilos de Impressão/PDF */
+        .no-print { }
+        @media print {
+            body { background-color: #fff; }
+            .no-print { display: none !important; }
+            section { box-shadow: none; border: none; margin: 0; padding: 0; }
+            textarea, input, select { border: none !important; resize: none; background: transparent; }
+            [contenteditable="true"] { outline: none !important; background-color: transparent !important; }
+            button { display: none !important; }
+        }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-100 font-sans min-h-screen pb-24">
+<body class="p-4 md:p-8">
 
-    <!-- Header -->
-    <header class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-10 shadow-lg">
-        <div class="flex items-center justify-between max-w-md mx-auto">
-            <div class="flex items-center gap-3">
-                <div class="bg-red-700 p-2 rounded-lg">
-                    <i class="fa-solid fa-building-shield text-white text-xl"></i>
-                </div>
-                <div>
-                    <h1 class="text-sm font-bold text-white tracking-wide">DIPEN / POLÍCIA PENAL</h1>
-                    <p class="text-xs text-slate-400">Gerador Padrão SSPS</p>
-                </div>
+    <!-- Mensagem Flutuante -->
+    <div id="message-box" class="fixed top-4 right-4 z-50 transition-opacity duration-300 opacity-0 pointer-events-none no-print"></div>
+
+    <!-- Controles -->
+    <section class="bg-white p-4 rounded-xl shadow-lg mb-8 flex flex-col md:flex-row justify-end items-center gap-4 no-print">
+        <button type="button" id="clear-all-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition shadow">Limpar Tudo</button>
+        
+        <div class="flex items-center gap-2">
+            <label class="text-sm font-medium text-gray-700">Marca d'água:</label>
+            <input type="text" id="pdf-watermark-input" placeholder="Ex: CONFIDENCIAL" class="p-2 border rounded w-40">
+        </div>
+
+        <button type="button" id="generate-pdf-btn" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-6 rounded transition shadow">Gerar PDF</button>
+    </section>
+
+    <!-- Conteúdo do Relatório (Área de Impressão) -->
+    <main id="report-content" class="bg-white p-8 rounded-xl shadow-xl max-w-[210mm] mx-auto">
+        
+        <!-- Seção de Cabeçalho (PDF) -->
+        <div id="pdf-section-header" class="mb-6 border-b-2 border-gray-800 pb-6">
+            <div class="text-center mb-6">
+                <h1 class="text-xl font-bold text-gray-800 uppercase tracking-wider">POLÍCIA PENAL DO ESTADO DO RIO GRANDE DO SUL</h1>
             </div>
-            <button onclick="resetForm()" class="text-slate-400 hover:text-red-400 transition-colors text-sm bg-slate-700/50 p-2 rounded-md">
-                <i class="fa-solid fa-trash-can"></i>
-            </button>
+
+            <div class="flex justify-between items-start gap-6">
+                <div class="flex-grow pt-2">
+                    <!-- Título Editável -->
+                    <input type="text" id="main-title-input" placeholder="Digite o Título do Relatório" 
+                           class="w-full text-3xl font-extrabold text-gray-900 placeholder-gray-300 border border-transparent hover:border-gray-200 focus:border-blue-500 rounded p-1 mb-2 bg-transparent transition-colors">
+                    
+                    <!-- Subtítulo Editável -->
+                    <div class="flex items-center text-lg text-gray-600 mb-1">
+                        <span class="font-semibold mr-2 shrink-0">Referente a:</span>
+                        <input type="text" id="reference-doc-input" placeholder="Documento de referência..." 
+                               class="w-full border-b border-gray-300 focus:border-blue-500 focus:outline-none text-gray-700 bg-transparent">
+                    </div>
+
+                    <h2 class="text-2xl font-bold text-gray-800 mt-4">ANÁLISE DE RISCO</h2>
+                    <p class="text-sm text-gray-500 mt-1">Gerado em: <span id="generation-date"></span></p>
+                </div>
+                
+                <!-- Espaço reservado para brasão (se quiser adicionar manualmente depois no HTML) -->
+                <!-- Brasão removido por segurança/simplicidade conforme solicitado -->
+            </div>
         </div>
-    </header>
 
-    <main class="p-4 max-w-md mx-auto space-y-4">
+        <!-- 1. Cadastro (Apenas Tela - Oculto na impressão) -->
+        <section class="mb-8 no-print border p-4 rounded bg-gray-50 shadow-sm">
+            <h3 class="font-bold text-lg mb-3 border-b pb-1 text-gray-700">1. Adicionar Novo Risco</h3>
+            <form id="risk-form" class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                <div class="md:col-span-3">
+                    <label class="block text-xs font-bold text-gray-600 mb-1">Nome do Risco</label>
+                    <input type="text" id="risk-name" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500" required>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-600 mb-1">Probabilidade (1-5)</label>
+                    <select id="risk-probability" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500" required>
+                        <option value="1">1 - Rara</option>
+                        <option value="2">2 - Improvável</option>
+                        <option value="3">3 - Possível</option>
+                        <option value="4">4 - Provável</option>
+                        <option value="5">5 - Quase Certa</option>
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-600 mb-1">Impacto (1-5)</label>
+                    <select id="risk-impact" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500" required>
+                        <option value="1">1 - Insignificante</option>
+                        <option value="2">2 - Menor</option>
+                        <option value="3">3 - Moderado</option>
+                        <option value="4">4 - Maior</option>
+                        <option value="5">5 - Catastrófico</option>
+                    </select>
+                </div>
+                <div class="md:col-span-3">
+                    <label class="block text-xs font-bold text-gray-600 mb-1">Descrição</label>
+                    <input type="text" id="risk-notes" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="md:col-span-2 flex items-end">
+                    <button type="submit" class="w-full bg-green-600 text-white font-bold p-2 rounded hover:bg-green-700 shadow">Adicionar</button>
+                </div>
+            </form>
+        </section>
 
-        <!-- Seleção do Tipo de Operação -->
-        <div class="bg-slate-800 rounded-xl p-4 border-l-4 border-red-600 shadow-md">
-            <label class="block text-xs text-red-400 font-bold uppercase mb-2">Tipo de Operação 🚨</label>
-            <select id="tipoOperacao" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-red-500 focus:outline-none font-bold">
-                <option value="REVISTA GERAL">REVISTA GERAL</option>
-                <option value="REVISTA PONTUAL">REVISTA PONTUAL</option>
-                <option value="MBA">MBA</option>
-            </select>
-        </div>
-
-        <!-- Bloco 1: Dados Básicos -->
-        <div class="bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-700 space-y-3">
-            <div class="flex items-center gap-2 mb-1 text-slate-300 font-semibold text-sm">
-                <i class="fa-solid fa-location-dot text-blue-400"></i> Localização e Dados
+        <!-- 2. Matriz -->
+        <section id="pdf-section-matrix" class="mb-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 border-l-4 border-blue-600 pl-2">2. Matriz de Risco</h2>
+            
+            <div class="flex">
+                <!-- Coluna Eixo Y (Título + Legendas Alinhadas) -->
+                <div class="flex flex-row mr-2">
+                    <!-- Título Vertical -->
+                    <div class="impact-title-container">
+                        <span class="impact-title">IMPACTO</span>
+                    </div>
+                    <!-- Legendas das Linhas -->
+                    <div class="flex flex-col pt-6"> 
+                        <div class="impact-row-label">Catastrófico (5)</div>
+                        <div class="impact-row-label">Maior (4)</div>
+                        <div class="impact-row-label">Moderado (3)</div>
+                        <div class="impact-row-label">Menor (2)</div>
+                        <div class="impact-row-label">Insignificante (1)</div>
+                    </div>
+                </div>
+                
+                <div class="flex-grow">
+                    <!-- Eixo X Labels -->
+                    <div class="grid grid-cols-5 text-center text-xs font-bold text-gray-600 mb-1 h-6 items-end">
+                        <span>Rara<br>(1)</span>
+                        <span>Improvável<br>(2)</span>
+                        <span>Possível<br>(3)</span>
+                        <span>Provável<br>(4)</span>
+                        <span>Quase Certa<br>(5)</span>
+                    </div>
+                    
+                    <!-- Grid -->
+                    <div class="grid grid-cols-5 border-2 border-gray-800 bg-gray-200 gap-0.5" id="risk-matrix-grid">
+                        <!-- Cells generated by JS -->
+                    </div>
+                    
+                    <!-- Título Eixo X -->
+                    <div class="text-center text-xs font-bold text-gray-500 mt-2 tracking-widest">PROBABILIDADE</div>
+                </div>
             </div>
             
-            <div>
-                <label class="block text-xs text-slate-400 mb-1">1 – EP (Estabelecimento Penal)</label>
-                <input type="text" id="ep" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 focus:border-blue-500 focus:outline-none">
+            <!-- Legenda -->
+            <div class="mt-4 flex flex-wrap gap-2 text-xs justify-center">
+                <span class="px-2 py-1 rounded bg-[#6ee7b7] text-gray-900 font-bold">Baixo (1-4)</span>
+                <span class="px-2 py-1 rounded bg-[#fcd34d] text-gray-900 font-bold">Médio (5-9)</span>
+                <span class="px-2 py-1 rounded bg-[#fb923c] text-white font-bold">Alto (10-15)</span>
+                <span class="px-2 py-1 rounded bg-[#991b1b] text-white font-bold">Crítico (16-25)</span>
             </div>
+        </section>
 
-            <div>
-                <label class="block text-xs text-slate-400 mb-1">2 – Local (Galeria/Cela/Setor)</label>
-                <input type="text" id="local" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 focus:border-blue-500 focus:outline-none">
+        <!-- 3. Lista de Riscos -->
+        <section id="pdf-section-list" class="mb-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 border-l-4 border-blue-600 pl-2">3. Riscos Registrados</h2>
+            <div id="risks-list" class="space-y-2">
+                <p class="text-gray-400 italic">Nenhum risco registado.</p>
             </div>
+        </section>
 
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1">3 – Total do EP</label>
-                    <input type="number" id="totalEp" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 focus:border-blue-500 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1">4 – OrCrim</label>
-                    <input type="text" id="orcrim" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 focus:border-blue-500 focus:outline-none">
-                </div>
-            </div>
-        </div>
-
-        <!-- Bloco 2: Tempo -->
-        <div class="bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-700 space-y-3">
-            <div class="flex items-center gap-2 mb-1 text-slate-300 font-semibold text-sm">
-                <i class="fa-regular fa-clock text-blue-400"></i> Cronologia
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1">5 – Data</label>
-                    <input type="date" id="data" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 focus:border-blue-500 focus:outline-none text-sm">
-                </div>
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1">6 – Entrada (HH:MM)</label>
-                    <input type="time" id="horaEntrada" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 focus:border-blue-500 focus:outline-none">
-                </div>
-            </div>
-             <div>
-                <label class="block text-xs text-slate-400 mb-1">13 – Término da operação (HH:MM)</label>
-                <input type="time" id="horaTermino" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 focus:border-blue-500 focus:outline-none">
-            </div>
-        </div>
-
-        <!-- Bloco 3: Objetivos -->
-        <div class="bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-700 space-y-3">
-            <div>
-                <label class="block text-xs text-slate-400 mb-1">7 – Finalidade</label>
-                <input type="text" id="finalidade" placeholder="Ex: Manutenção da ordem" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 focus:border-blue-500 focus:outline-none">
-            </div>
-            <div>
-                <label class="block text-xs text-slate-400 mb-1">8 – Objetivo</label>
-                <input type="text" id="objetivo" placeholder="Ex: Busca de ilícitos" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 focus:border-blue-500 focus:outline-none">
-            </div>
-        </div>
-
-        <!-- Bloco 4: Pessoal -->
-        <div class="bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-700 space-y-3">
-            <div>
-                <label class="block text-xs text-slate-400 mb-1">9 – Efetivo funcional</label>
-                <textarea id="efetivo" rows="3" placeholder="Liste os servidores..." class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 focus:border-blue-500 focus:outline-none"></textarea>
-            </div>
+        <!-- 4. Plano 5W2H -->
+        <section id="pdf-section-5w2h" class="mb-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 border-l-4 border-blue-600 pl-2">4. Plano de Ação 5W2H</h2>
             
-            <div>
-                <div class="flex justify-between items-end mb-1">
-                    <label class="block text-xs text-slate-400">10 – Presos transferidos</label>
-                    <button onclick="setNaoAplica('presos')" class="text-[10px] bg-slate-700 px-2 py-1 rounded hover:bg-slate-600 transition">Não se aplica</button>
+            <!-- Controles 5W2H (Tela) - SERÁ OCULTO NO PDF -->
+            <div class="no-print bg-gray-50 p-4 rounded border mb-4 shadow-sm">
+                <div class="flex flex-col md:flex-row gap-2 mb-4">
+                    <select id="mitigation-risk-id" class="flex-grow p-2 border rounded focus:ring-2 focus:ring-blue-500">
+                        <option disabled selected>Selecione um Risco para Mitigar...</option>
+                    </select>
                 </div>
-                <textarea id="presos" rows="2" placeholder="Nomes / Quantidade" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 focus:border-blue-500 focus:outline-none"></textarea>
+                
+                <!-- Formulário 5W2H -->
+                <form id="mitigation-form" class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                    <div class="md:col-span-6">
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">O Quê (What)</label>
+                        <input id="mit-what" maxlength="120" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500" required>
+                        <div class="text-[10px] text-gray-400 text-right">Máx 120</div>
+                    </div>
+                    <div class="md:col-span-6">
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Por Quê (Why)</label>
+                        <input id="mit-why" maxlength="120" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500">
+                        <div class="text-[10px] text-gray-400 text-right">Máx 120</div>
+                    </div>
+                    <div class="md:col-span-4">
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Onde (Where)</label>
+                        <input id="mit-where" maxlength="60" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="md:col-span-4">
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Quando (When)</label>
+                        <input id="mit-when" maxlength="60" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="md:col-span-4">
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Quem (Who)</label>
+                        <input id="mit-who" maxlength="60" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="md:col-span-9">
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Como (How)</label>
+                        <textarea id="mit-how" maxlength="300" rows="2" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 resize-y"></textarea>
+                        <div class="text-[10px] text-gray-400 text-right">Máx 300</div>
+                    </div>
+                    <div class="md:col-span-3">
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Quanto (How Much)</label>
+                        <input id="mit-cost" maxlength="50" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 h-[42px]"> 
+                    </div>
+                    <div class="md:col-span-12 mt-2">
+                        <button type="submit" class="w-full bg-blue-600 text-white font-bold p-3 rounded hover:bg-blue-700 shadow transition-colors">
+                            Adicionar ao Plano de Ação
+                        </button>
+                    </div>
+                </form>
             </div>
-        </div>
 
-        <!-- Bloco 5: Ilícitos (Lista Inteligente) -->
-        <div class="bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-700">
-            <div class="flex items-center gap-2 mb-3 text-slate-300 font-semibold text-sm">
-                <i class="fa-solid fa-ban text-red-500"></i> 11 - Ilícitos apreendidos
+            <!-- Tabela -->
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm text-left text-gray-600 border border-collapse border-gray-300">
+                    <thead class="text-xs text-gray-800 uppercase bg-blue-100 border-b-2 border-gray-300">
+                        <tr>
+                            <th class="px-2 py-3 border-r border-gray-300 w-[15%]">Risco</th>
+                            <th class="px-2 py-3 border-r border-gray-300 w-[15%]">O Quê</th>
+                            <th class="px-2 py-3 border-r border-gray-300 w-[15%]">Por Quê</th>
+                            <th class="px-2 py-3 border-r border-gray-300 w-[10%]">Onde</th>
+                            <th class="px-2 py-3 border-r border-gray-300 w-[10%]">Quando</th>
+                            <th class="px-2 py-3 border-r border-gray-300 w-[10%]">Quem</th>
+                            <th class="px-2 py-3 border-r border-gray-300 w-[15%]">Como</th>
+                            <th class="px-2 py-3 border-r border-gray-300 w-[10%]">Custo</th>
+                            <th class="px-2 py-3 no-print text-center w-8">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mitigation-tbody" class="bg-white"></tbody>
+                </table>
+                <p class="text-xs text-gray-400 mt-2 no-print italic">* Clique nas células para editar o texto.</p>
             </div>
-            <p class="text-xs text-slate-500 mb-3">Preencha apenas o que foi apreendido. Deixe em branco o que não houve.</p>
-            
-            <div class="grid grid-cols-2 gap-2">
-                <!-- Itens -->
-                <div class="bg-slate-900 p-2 rounded border border-slate-700/50">
-                    <label class="text-[10px] uppercase text-slate-400 font-bold block mb-1">Maconha</label>
-                    <input type="text" data-ilicito="MACONHA" placeholder="Qtd" class="w-full bg-slate-800 text-white text-sm p-1 rounded border-none focus:ring-1 focus:ring-red-500">
-                </div>
-                <div class="bg-slate-900 p-2 rounded border border-slate-700/50">
-                    <label class="text-[10px] uppercase text-slate-400 font-bold block mb-1">Cocaína</label>
-                    <input type="text" data-ilicito="COCAÍNA" placeholder="Qtd" class="w-full bg-slate-800 text-white text-sm p-1 rounded border-none focus:ring-1 focus:ring-red-500">
-                </div>
-                <div class="bg-slate-900 p-2 rounded border border-slate-700/50">
-                    <label class="text-[10px] uppercase text-slate-400 font-bold block mb-1">Crack</label>
-                    <input type="text" data-ilicito="CRACK" placeholder="Qtd" class="w-full bg-slate-800 text-white text-sm p-1 rounded border-none focus:ring-1 focus:ring-red-500">
-                </div>
-                <div class="bg-slate-900 p-2 rounded border border-slate-700/50">
-                    <label class="text-[10px] uppercase text-slate-400 font-bold block mb-1">Celular</label>
-                    <input type="text" data-ilicito="CELULAR" placeholder="Qtd" class="w-full bg-slate-800 text-white text-sm p-1 rounded border-none focus:ring-1 focus:ring-red-500">
-                </div>
-                <div class="bg-slate-900 p-2 rounded border border-slate-700/50">
-                    <label class="text-[10px] uppercase text-slate-400 font-bold block mb-1">Chip</label>
-                    <input type="text" data-ilicito="CHIP" placeholder="Qtd" class="w-full bg-slate-800 text-white text-sm p-1 rounded border-none focus:ring-1 focus:ring-red-500">
-                </div>
-                <div class="bg-slate-900 p-2 rounded border border-slate-700/50">
-                    <label class="text-[10px] uppercase text-slate-400 font-bold block mb-1">Arma Branca</label>
-                    <input type="text" data-ilicito="ARMA BRANCA" placeholder="Qtd" class="w-full bg-slate-800 text-white text-sm p-1 rounded border-none focus:ring-1 focus:ring-red-500">
-                </div>
-                <div class="bg-slate-900 p-2 rounded border border-slate-700/50">
-                    <label class="text-[10px] uppercase text-slate-400 font-bold block mb-1">Arma de Fogo</label>
-                    <input type="text" data-ilicito="ARMA DE FOGO" placeholder="Qtd" class="w-full bg-slate-800 text-white text-sm p-1 rounded border-none focus:ring-1 focus:ring-red-500">
-                </div>
-                <div class="bg-slate-900 p-2 rounded border border-slate-700/50">
-                    <label class="text-[10px] uppercase text-slate-400 font-bold block mb-1">Munição</label>
-                    <input type="text" data-ilicito="MUNIÇÃO" placeholder="Qtd" class="w-full bg-slate-800 text-white text-sm p-1 rounded border-none focus:ring-1 focus:ring-red-500">
-                </div>
-                <div class="col-span-2 bg-slate-900 p-2 rounded border border-slate-700/50">
-                    <label class="text-[10px] uppercase text-slate-400 font-bold block mb-1">Outros</label>
-                    <input type="text" data-ilicito="OUTROS" placeholder="Descreva..." class="w-full bg-slate-800 text-white text-sm p-1 rounded border-none focus:ring-1 focus:ring-red-500">
-                </div>
-            </div>
-        </div>
+        </section>
 
-        <!-- Bloco 6: Informações Finais -->
-        <div class="bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-700">
-            <div class="flex items-center gap-2 mb-3 text-slate-300 font-semibold text-sm">
-                <i class="fa-solid fa-circle-info text-blue-400"></i> 12 - Informações relevantes
-            </div>
-            <textarea id="infos" rows="5" placeholder="Descrição do fato..." class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 focus:border-blue-500 focus:outline-none"></textarea>
-        </div>
-
-        <!-- Bloco de Câmera -->
-        <div class="bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-700">
-            <div class="flex items-center gap-2 mb-3 text-slate-300 font-semibold text-sm">
-                <i class="fa-solid fa-camera text-blue-400"></i> Fotos / Anexos
-            </div>
-            
-            <!-- Input de arquivo oculto -->
-            <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleCamera(this)">
-            
-            <button onclick="document.getElementById('cameraInput').click()" class="w-full bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 border-dashed rounded-lg p-6 flex flex-col items-center justify-center gap-2 transition-all active:scale-95">
-                <i class="fa-solid fa-camera-retro text-3xl text-slate-400"></i>
-                <span class="text-sm text-slate-400 font-medium">Toque para tirar foto</span>
-            </button>
-
-            <!-- Galeria de miniaturas -->
-            <div id="gallery" class="grid grid-cols-3 gap-2 mt-4 empty:hidden"></div>
-        </div>
-
-        <!-- Botão Gerar -->
-        <button onclick="gerarRelatorio()" class="w-full bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2 text-lg uppercase tracking-wider">
-            <i class="fa-solid fa-file-shield"></i> Gerar Relatório
-        </button>
-
-        <!-- Área de Preview -->
-        <div id="previewArea" class="hidden mt-6 bg-slate-950 rounded-xl border border-slate-700 overflow-hidden">
-            <div class="bg-slate-900 p-3 border-b border-slate-700 flex justify-between items-center">
-                <span class="text-sm font-semibold text-slate-300">Pré-visualização</span>
-                <span class="text-xs text-slate-500">Editável</span>
-            </div>
-            <textarea id="textoFinal" class="w-full h-96 bg-slate-950 p-4 text-slate-300 focus:outline-none font-mono text-sm leading-relaxed resize-none"></textarea>
-            
-            <div class="grid grid-cols-2 gap-0 border-t border-slate-700">
-                <button onclick="copiarTexto()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 py-4 font-semibold flex items-center justify-center gap-2 border-r border-slate-700 transition-colors">
-                    <i class="fa-regular fa-copy"></i> Copiar
-                </button>
-                <button onclick="compartilharZap()" class="bg-green-600 hover:bg-green-500 text-white py-4 font-bold flex items-center justify-center gap-2 transition-colors">
-                    <i class="fa-brands fa-whatsapp text-xl"></i> Enviar
-                </button>
-            </div>
-        </div>
+        <!-- 5. Observações -->
+        <section id="pdf-section-obs" class="mb-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 border-l-4 border-blue-600 pl-2">5. Observações</h2>
+            <textarea id="obs-area" rows="5" class="w-full p-3 border border-gray-300 rounded bg-transparent focus:ring-2 focus:ring-blue-500" placeholder="Digite suas observações finais aqui..."></textarea>
+        </section>
 
     </main>
 
-    <!-- Toast -->
-    <div id="toast" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl border border-slate-600 flex items-center gap-3 hidden z-50 min-w-[200px] justify-center">
-        <i id="toastIcon" class="fa-solid fa-check-circle text-green-400"></i>
-        <span id="toastMsg" class="font-medium">Copiado!</span>
-    </div>
+    <footer class="text-center text-sm text-gray-500 py-4 mt-8 border-t no-print">
+        <p>Ferramenta de Análise de Risco no Contexto Penitenciário.</p>
+    </footer>
 
     <script>
-        let storedFiles = []; // Array para armazenar as fotos
+        // --- CONFIGURAÇÃO ---
+        let risks = [];
+        let mitigations = [];
+        let nextId = 1, nextMitId = 1;
 
-        // Inicialização
-        window.onload = function() {
-            setDates();
-        };
-
-        function setDates() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            document.getElementById('data').value = `${year}-${month}-${day}`;
-            
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            document.getElementById('horaEntrada').value = `${hours}:${minutes}`;
+        // --- SCORE E NÍVEL ---
+        function getLevel(p, i) {
+            const s = p * i;
+            if (s >= 16) return { l: 'Crítico', c: 'bg-[#991b1b] text-white', s }; 
+            if (s >= 10) return { l: 'Alto', c: 'bg-[#fb923c] text-white', s };
+            if (s >= 5) return { l: 'Médio', c: 'bg-[#fcd34d] text-gray-900', s };
+            return { l: 'Baixo', c: 'bg-[#6ee7b7] text-gray-900', s };
         }
 
-        function setNaoAplica(id) {
-            document.getElementById(id).value = "NÃO SE APLICA";
-        }
-
-        // Funções da Câmera
-        function handleCamera(input) {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                storedFiles.push(file); // Adiciona ao array
-                
-                // Cria miniatura
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const div = document.createElement('div');
-                    div.className = "relative group aspect-square bg-slate-900 rounded-lg overflow-hidden border border-slate-700";
+        // --- INICIALIZAÇÃO DA MATRIZ ---
+        function initMatrix() {
+            const grid = document.getElementById('risk-matrix-grid');
+            grid.innerHTML = '';
+            for (let i = 5; i >= 1; i--) {
+                for (let p = 1; p <= 5; p++) {
+                    const lvl = getLevel(p, i);
+                    const cell = document.createElement('div');
                     
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.className = "w-full h-full object-cover";
-                    
-                    const btn = document.createElement('button');
-                    btn.innerHTML = '<i class="fa-solid fa-times"></i>';
-                    btn.className = "absolute top-1 right-1 bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-md opacity-90 hover:opacity-100";
-                    btn.onclick = function() {
-                        // Remove do array e do DOM
-                        const index = storedFiles.indexOf(file);
-                        if (index > -1) storedFiles.splice(index, 1);
-                        div.remove();
-                    };
+                    let colorClass = '';
+                    if (lvl.s >= 16) colorClass = 'matrix-16-25';
+                    else if (lvl.s >= 10) colorClass = 'matrix-10-15';
+                    else if (lvl.s >= 5) colorClass = 'matrix-5-9';
+                    else colorClass = 'matrix-1-4';
 
-                    div.appendChild(img);
-                    div.appendChild(btn);
-                    document.getElementById('gallery').appendChild(div);
-                };
-                reader.readAsDataURL(file);
-                
-                // Limpa o input para permitir tirar a mesma foto novamente se necessário
-                input.value = '';
+                    cell.className = `risk-cell ${colorClass}`;
+                    cell.id = `cell-${p}-${i}`;
+                    cell.innerHTML = `<span class="risk-score-label">${lvl.s}</span>`; 
+                    grid.appendChild(cell);
+                }
             }
         }
 
-        function gerarRelatorio() {
-            // Coleta de dados básicos
-            const tipoOp = document.getElementById('tipoOperacao').value;
-            const ep = document.getElementById('ep').value || "";
-            const local = document.getElementById('local').value || "";
-            const totalEp = document.getElementById('totalEp').value || "";
-            const orcrim = document.getElementById('orcrim').value || "";
+        // --- RENDERIZAÇÃO ---
+        function render() {
+            document.querySelectorAll('.risk-item').forEach(e => e.remove());
             
-            // Data
-            let dataRaw = document.getElementById('data').value;
-            let dataFmt = dataRaw ? dataRaw.split('-').reverse().join('/') : "";
+            const rList = document.getElementById('risks-list');
+            rList.innerHTML = risks.length ? '' : '<p class="text-gray-400 italic">Nenhum risco registado.</p>';
             
-            const horaEntrada = document.getElementById('horaEntrada').value || "";
-            const finalidade = document.getElementById('finalidade').value || "";
-            const objetivo = document.getElementById('objetivo').value || "";
-            const efetivo = document.getElementById('efetivo').value || "";
-            const presos = document.getElementById('presos').value || "";
-            const infos = document.getElementById('infos').value || "";
-            const horaTermino = document.getElementById('horaTermino').value || "";
+            const sel = document.getElementById('mitigation-risk-id');
+            const currentVal = sel.value; 
+            sel.innerHTML = '<option disabled selected>Selecione um Risco...</option>';
 
-            // Coleta de Ilícitos
-            let ilicitosTexto = "";
-            const inputsIlicitos = document.querySelectorAll('input[data-ilicito]');
-            let itensEncontrados = [];
-
-            inputsIlicitos.forEach(input => {
-                if (input.value.trim() !== "") {
-                    const nome = input.getAttribute('data-ilicito');
-                    const qtd = input.value;
-                    itensEncontrados.push(`${nome}: ${qtd}`);
+            risks.forEach(r => {
+                // Matriz
+                const cell = document.getElementById(`cell-${r.p}-${r.i}`);
+                if (cell) {
+                    const chip = document.createElement('div');
+                    chip.className = `risk-item ${r.lvlObj.c.includes('text-white') ? 'bg-black/20 text-white' : 'bg-white/60 text-black'}`;
+                    chip.innerText = r.name;
+                    chip.title = r.desc;
+                    cell.appendChild(chip);
                 }
+
+                // Lista
+                const item = document.createElement('div');
+                item.className = `p-3 border rounded flex justify-between items-start gap-4 ${r.lvlObj.c}`;
+                item.innerHTML = `
+                    <div class="flex-grow">
+                        <div class="flex justify-between items-center">
+                            <strong class="text-sm uppercase tracking-wide">${r.name}</strong>
+                            <span class="text-xs font-bold border px-1 rounded bg-white/20">${r.lvlObj.l} (Score: ${r.lvlObj.s})</span>
+                        </div>
+                        <div class="text-xs mt-1 opacity-90 whitespace-pre-wrap">${r.desc || 'Sem descrição.'}</div>
+                    </div>
+                    <button onclick="delRisk(${r.id})" class="bg-black/20 px-2 py-1 rounded text-xs hover:bg-black/40 no-print font-bold">X</button>
+                `;
+                rList.appendChild(item);
+
+                // Select
+                const opt = document.createElement('option');
+                opt.value = r.id;
+                opt.innerText = r.name;
+                sel.appendChild(opt);
             });
-
-            if (itensEncontrados.length > 0) {
-                ilicitosTexto = itensEncontrados.join("\n");
-            } else {
-                ilicitosTexto = "NADA CONSTA";
-            }
-
-            // Construção do Template (exatamente como pedido)
-            const template = `⚠️ DIPEN/DIPEN/POLÍCIA PENAL/SSPS⚠️
- 
-🚨 ${tipoOp} 🚨
- 
-1 – EP: ${ep}
-2 - Local: ${local}
-3 - Total do EP: ${totalEp}
-4 - OrCrim: ${orcrim}
-5 – Data: ${dataFmt}
-6 – Horário de entrada: ${horaEntrada}
-7 - Finalidade: ${finalidade}
-8 - Objetivo: ${objetivo}
-9 - Efetivo funcional:
-${efetivo}
-
-10 - Presos transferidos: ${presos}
-
-11- Ilícitos apreendidos:
-${ilicitosTexto}
-
-12 - Informações relevantes:
-${infos}
-
-13 - Término da operação: ${horaTermino}`;
-
-            // Renderizar
-            const previewArea = document.getElementById('previewArea');
-            const textoFinal = document.getElementById('textoFinal');
             
-            textoFinal.value = template;
-            previewArea.classList.remove('hidden');
-            previewArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (currentVal && risks.find(r => r.id == currentVal)) sel.value = currentVal;
+
+            // 4. Tabela 5W2H (Com estilo zebrado azul e editável)
+            const tbody = document.getElementById('mitigation-tbody');
+            tbody.innerHTML = mitigations.length ? '' : '<tr><td colspan="9" class="p-4 text-center text-gray-400 italic border border-gray-300">Nenhuma ação cadastrada.</td></tr>';
             
-            showToast("Relatório gerado!", "success");
+            mitigations.forEach((m, index) => {
+                const rName = risks.find(x => x.id == m.rid)?.name || '(Risco Removido)';
+                const tr = document.createElement('tr');
+                const rowColor = index % 2 === 0 ? 'bg-white' : 'bg-blue-50';
+                tr.className = `${rowColor} border-b border-gray-200 hover:bg-blue-100 transition-colors`;
+                
+                // Helper para criar célula editável
+                const makeCell = (field, val) => `
+                    <td class="px-2 py-2 border-r border-gray-300 text-xs align-top" 
+                        contenteditable="true" 
+                        onblur="updateMit(this, ${m.id}, '${field}')">${val}</td>`;
+
+                tr.innerHTML = `
+                    <td class="px-2 py-2 font-bold border-r border-gray-300 text-xs bg-gray-50/50 align-top" title="Não editável">${rName}</td>
+                    ${makeCell('what', m.what)}
+                    ${makeCell('why', m.why)}
+                    ${makeCell('where', m.where)}
+                    ${makeCell('when', m.when)}
+                    ${makeCell('who', m.who)}
+                    ${makeCell('how', m.how)}
+                    ${makeCell('cost', m.cost)}
+                    <td class="px-2 py-2 border-r border-gray-300 no-print text-center align-middle w-8">
+                        <button onclick="delMit(${m.id})" class="text-red-600 font-extrabold hover:text-red-800 text-lg leading-none">&times;</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
         }
 
-        // Funções de copiar e reset
-        function copiarTexto() {
-            const texto = document.getElementById('textoFinal');
-            texto.select();
-            texto.setSelectionRange(0, 99999);
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(texto.value)
-                    .then(() => showToast("Copiado!"))
-                    .catch(() => fallbackCopy(texto));
-            } else {
-                fallbackCopy(texto);
+        // --- FUNÇÕES DE AÇÃO ---
+        function addRisk(e) {
+            e.preventDefault();
+            const name = document.getElementById('risk-name').value.trim();
+            if(!name) return;
+            const p = parseInt(document.getElementById('risk-probability').value);
+            const i = parseInt(document.getElementById('risk-impact').value);
+            const desc = document.getElementById('risk-notes').value.trim();
+            risks.push({ id: nextId++, name, p, i, desc, lvlObj: getLevel(p, i) });
+            e.target.reset();
+            render();
+            msg('Risco adicionado com sucesso.');
+        }
+
+        function addMit(e) {
+            e.preventDefault();
+            const rid = parseInt(document.getElementById('mitigation-risk-id').value);
+            if (!rid) return msg('Selecione um risco para adicionar ação!', 'error');
+            
+            mitigations.push({
+                id: nextMitId++, rid,
+                what: document.getElementById('mit-what').value,
+                why: document.getElementById('mit-why').value,
+                where: document.getElementById('mit-where').value,
+                when: document.getElementById('mit-when').value,
+                who: document.getElementById('mit-who').value,
+                how: document.getElementById('mit-how').value,
+                cost: document.getElementById('mit-cost').value
+            });
+            e.target.reset();
+            document.getElementById('mitigation-risk-id').value = rid; 
+            render();
+            msg('Plano de ação adicionado.');
+        }
+        
+        function updateMit(el, id, field) {
+            const mit = mitigations.find(m => m.id === id);
+            if (mit) {
+                mit[field] = el.innerText.trim();
+                el.style.backgroundColor = "#dcfce7"; 
+                setTimeout(() => el.style.backgroundColor = "", 300);
             }
         }
 
-        function fallbackCopy(texto) {
+        function delRisk(id) {
+            risks = risks.filter(r => r.id !== id);
+            mitigations = mitigations.filter(m => m.rid !== id);
+            render();
+            msg('Risco removido.');
+        }
+        
+        function delMit(id) {
+            mitigations = mitigations.filter(m => m.id !== id);
+            render();
+        }
+
+        function clearAll() {
+            risks = []; mitigations = [];
+            document.getElementById('risk-form').reset();
+            document.getElementById('mitigation-form').reset();
+            document.getElementById('obs-area').value = '';
+            document.getElementById('main-title-input').value = '';
+            document.getElementById('reference-doc-input').value = '';
+            document.getElementById('pdf-watermark-input').value = '';
+            render();
+            msg('Tudo limpo.');
+        }
+
+        // --- GERAÇÃO DE PDF ---
+        async function genPDF() {
+            const { jsPDF } = window.jspdf;
+            const btn = document.getElementById('generate-pdf-btn');
+            btn.disabled = true; btn.innerText = 'Gerando...';
+
+            // Prepara Inputs
+            const obsArea = document.getElementById('obs-area');
+            const obsText = obsArea.value;
+            const obsParent = obsArea.parentNode;
+            const obsDiv = document.createElement('div');
+            obsDiv.className = "w-full p-3 text-sm text-gray-700 whitespace-pre-wrap border rounded border-transparent";
+            obsDiv.innerHTML = obsText.replace(/\n/g, '<br>'); 
+            obsArea.style.display = 'none';
+            obsParent.appendChild(obsDiv);
+
+            const inputs = document.querySelectorAll('input[type="text"]');
+            inputs.forEach(el => el.classList.add('border-transparent'));
+            
+            const noPrintElements = document.querySelectorAll('.no-print');
+            noPrintElements.forEach(el => el.style.display = 'none');
+            
+            // Remove o contenteditable para o PDF
+            const editables = document.querySelectorAll('[contenteditable="true"]');
+            editables.forEach(el => el.removeAttribute('contenteditable'));
+
             try {
-                document.execCommand('copy');
-                showToast("Copiado!");
-            } catch (err) {
-                showToast("Erro ao copiar", "error");
-            }
-        }
+                const doc = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = 210;
+                const pdfHeight = 297; 
+                const margin = 10;
+                const contentWidth = pdfWidth - (margin * 2);
+                let y = margin;
 
-        async function compartilharZap() {
-            const texto = document.getElementById('textoFinal').value;
-            if (!texto) { showToast("Gere primeiro!", "error"); return; }
+                const sections = ['pdf-section-header', 'pdf-section-matrix', 'pdf-section-list', 'pdf-section-5w2h', 'pdf-section-obs'];
 
-            // Tenta Compartilhamento Nativo com Arquivos (Nível 2 do Web Share API)
-            // Isso funciona na maioria dos Androids e iOS modernos (Chrome/Safari)
-            if (navigator.canShare && navigator.share && storedFiles.length > 0) {
-                try {
-                    // Verifica se o navegador suporta os arquivos especificos
-                    if (navigator.canShare({ files: storedFiles })) {
-                        await navigator.share({
-                            text: texto,
-                            files: storedFiles
-                        });
-                        showToast("Enviado com sucesso!");
-                        return;
+                for (const id of sections) {
+                    const el = document.getElementById(id);
+                    if (!el) continue;
+                    if (id === 'pdf-section-obs' && !obsText.trim()) continue;
+
+                    const canvas = await html2canvas(el, { scale: 2, useCORS: true, logging: false });
+                    const imgData = canvas.toDataURL('image/png');
+                    const imgProps = doc.getImageProperties(imgData);
+                    const imgHeight = (imgProps.height * contentWidth) / imgProps.width;
+
+                    if (y + imgHeight > pdfHeight - margin - 15) {
+                        doc.addPage();
+                        addWatermark(doc);
+                        y = margin;
                     }
-                } catch (err) {
-                    console.log("Compartilhamento nativo falhou ou cancelado", err);
-                    // Se falhar, continua para o método de texto apenas
+
+                    doc.addImage(imgData, 'PNG', margin, y, contentWidth, imgHeight);
+                    y += imgHeight + 5; 
                 }
+                
+                // Rodapé em todas as páginas
+                const totalPages = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= totalPages; i++) {
+                   doc.setPage(i);
+                   addWatermark(doc); 
+                   
+                   doc.setFont('helvetica', 'bold');
+                   doc.setFontSize(10);
+                   doc.setTextColor(220, 20, 60);
+                   const text = "DOCUMENTO PREPARATÓRIO – ACESSO RESTRITO";
+                   const textWidth = doc.getStringUnitWidth(text) * 10 / doc.internal.scaleFactor;
+                   const x = (pdfWidth - textWidth) / 2;
+                   doc.text(text, x, pdfHeight - 10);
+                }
+                
+                const title = document.getElementById('main-title-input').value.trim() || 'Relatorio_Risco';
+                doc.save(`${title.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+                msg('PDF salvo!');
+
+            } catch (e) {
+                console.error(e);
+                msg('Erro ao gerar PDF.', 'error');
+            } finally {
+                inputs.forEach(el => el.classList.remove('border-transparent'));
+                noPrintElements.forEach(el => el.style.display = '');
+                obsArea.style.display = 'block';
+                obsDiv.remove();
+                editables.forEach(el => el.setAttribute('contenteditable', 'true'));
+                
+                btn.disabled = false; btn.innerText = 'Gerar PDF';
             }
+        }
+
+        function addWatermark(doc) {
+            const text = document.getElementById('pdf-watermark-input').value;
+            if (!text) return;
             
-            // Aviso se houver arquivos mas o navegador não suportar envio direto
-            if (storedFiles.length > 0) {
-                alert("Atenção: Este navegador não permite anexar as fotos automaticamente ao WhatsApp.\n\nO texto será aberto, mas você precisará selecionar as fotos manualmente na sua galeria.");
-            }
-
-            const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
-            window.open(url, '_blank');
-        }
-
-        function resetForm() {
-            if(confirm("Limpar tudo?")) {
-                document.querySelectorAll('input, textarea').forEach(el => el.value = '');
-                storedFiles = []; // Limpa fotos
-                document.getElementById('gallery').innerHTML = '';
-                document.getElementById('previewArea').classList.add('hidden');
-                setDates();
-                showToast("Limpo", "success");
-            }
-        }
-
-        function showToast(message, type = "success") {
-            const toast = document.getElementById('toast');
-            document.getElementById('toastMsg').innerText = message;
-            const icon = document.getElementById('toastIcon');
+            doc.setTextColor(150, 150, 150);
+            doc.setFontSize(40);
+            try {
+                if (doc.setGState) doc.setGState(new doc.GState({ opacity: 0.15 }));
+            } catch(e) {}
+            doc.text(text, 105, 148.5, { align: 'center', angle: 45 });
             
-            if (type === "error") icon.className = "fa-solid fa-circle-exclamation text-red-400";
-            else icon.className = "fa-solid fa-check-circle text-green-400";
-
-            toast.classList.remove('hidden');
-            toast.classList.add('toast-enter');
-            setTimeout(() => {
-                toast.classList.add('hidden');
-                toast.classList.remove('toast-enter');
-            }, 3000);
+            try {
+                if (doc.setGState) doc.setGState(new doc.GState({ opacity: 1.0 }));
+            } catch(e) {}
         }
+
+        function msg(txt, type='success') {
+            const box = document.getElementById('message-box');
+            box.className = `fixed top-4 right-4 z-50 p-4 rounded shadow-lg font-bold text-white transition-opacity duration-300 ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
+            box.innerText = txt;
+            box.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => box.classList.add('opacity-0', 'pointer-events-none'), 3000);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initMatrix();
+            document.getElementById('generation-date').innerText = new Date().toLocaleDateString('pt-BR');
+            
+            document.getElementById('risk-form').onsubmit = addRisk;
+            document.getElementById('mitigation-form').onsubmit = addMit;
+            document.getElementById('clear-all-btn').onclick = clearAll;
+            document.getElementById('generate-pdf-btn').onclick = genPDF;
+            
+            render();
+        });
     </script>
 </body>
 </html>
